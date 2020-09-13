@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #################################################################################
 ##   MSP430G2xx3 based BattLab-One Production Version 1.01
 ##
@@ -39,26 +41,29 @@
 ##
 #################################################################################
 
-import tkinter as tk
-from tkinter import ttk
-from tkinter import *
 import csv
 from csv import reader
-import time
 import datetime
-import serial
-import serial.tools.list_ports
-from serial.tools import list_ports
+import os
+import platform
+import signal
+import sys
+import time
+import webbrowser
+
 import matplotlib
 from matplotlib.widgets import Cursor
 import matplotlib.pyplot as plt
-import platform
+import serial
+import serial.tools.list_ports
+from serial.tools import list_ports
+import tkinter as tk
+from tkinter import ttk
+from tkinter import *
 from tkinter import colorchooser
 from tkinter import font
-import os
 from tkinter import messagebox
 from tkinter import filedialog
-import webbrowser
 
 matplotlib.use('TkAgg')
 
@@ -66,7 +71,7 @@ matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
-#################################################################################    
+#################################################################################
 ###     SETUP ROOT, FRAMES, & MATPLOTLIB CANVAS
 #################################################################################
 
@@ -79,33 +84,48 @@ def GetIconPath():
 
 root = tk.Tk()
 root.wm_title('BattLab One')
-root.resizable(False,False)
+#root.resizable(False,False)
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 root.iconbitmap(GetIconPath())
 
-s = ttk.Style() 
+s = ttk.Style()
 s.configure('TLabelframe', background='dark gray')
 
-profile_frame = ttk.Frame(root,style='TLabelframe', width = 800, height = 600)
-profile_frame.grid(row=0, column=0, padx=5,pady=(1,1),sticky = 'n')
+profile_frame = ttk.Frame(root, style='TLabelframe', borderwidth=0)
+profile_frame.grid(row=0, column=0, sticky='nesw')
+profile_frame.columnconfigure(1, weight=1)
+profile_frame.rowconfigure(0, weight=1)
+
+graphs_frame = ttk.Frame(profile_frame, style='TLabelframe', borderwidth=0)
+graphs_frame.grid(row=0, column=1, sticky='nwes')
+graphs_frame.columnconfigure(1, weight=1)
+#graphs_frame.rowconfigure(0, weight=1)
+config_frame = ttk.Frame(profile_frame, style='TLabelframe', borderwidth=0)
+config_frame.grid(row=0, column=0, sticky='nwe')
 
 def openBBL():
    webbrowser.open_new('http://bluebird-labs.com')
 
 img = PhotoImage(file='icons/bbirdlogo_png1.png')
-logo_button = tk.Button(profile_frame,image=img,command=openBBL,state=tk.NORMAL)
-logo_button.grid(row=25,column=0,rowspan=4, padx=(5,4),pady=(5,5),sticky = 'sw')
+buttons_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+buttons_frame.grid(row=11, column=0, sticky='we')
+logo_button = tk.Button(buttons_frame,image=img,command=openBBL,state=tk.NORMAL)
+logo_button.grid(row=0, column=0, rowspan=2, sticky='w')
 
-frame = ttk.Frame(profile_frame, borderwidth=5, relief='sunken', width=800, height=450)
-frame.grid(row=0, column=1,  rowspan=20, padx=(3,10),pady=(1,1), sticky='n')
+frame = ttk.Frame(graphs_frame, borderwidth=5, relief='sunken')
+frame.grid(row=0, column=0, columnspan=2, sticky='nw')
+frame.columnconfigure(0, weight=1)
+frame.rowconfigure(0, weight=1)
 
-frame1 = ttk.Frame(profile_frame, borderwidth=5, relief='sunken', width=800, height=600)
-frame1.grid(row=20, column=1, rowspan=10, padx=(10,10),pady=(5,15), sticky='e')
+frame1 = ttk.Frame(graphs_frame, borderwidth=5, relief='sunken')
+frame1.grid(row=1, column=1, rowspan=2, sticky='nw')
+frame1.columnconfigure(0, weight=1)
+frame1.rowconfigure(0, weight=1)
 
-w = Canvas(frame, width=800, height=400)
+w = Canvas(frame)
 w.config(background='black')
-w.grid(row=0,column = 3,padx=5,pady=(5,5),sticky = 'n')
+w.grid(row=0,column = 3,padx=5,pady=(5,5),sticky = 'nsew')
 
 w1 = Canvas(frame1, width=250, height=200)
 w1.config(background='black')
@@ -136,7 +156,7 @@ lo_offset.set(0)
 
 sleep_timer=tk.IntVar()
 sleep_timer.set(1)
-   
+
 LSB=0.0025
 
 line_color = StringVar()
@@ -191,7 +211,7 @@ def get_ports():
    ports = list(serial.tools.list_ports.comports())
    cpl = []
    for p in ports:
-      cpl.append(p.device)   
+      cpl.append(p.device)
    return cpl
 
 def popupmsg(msg):
@@ -211,7 +231,7 @@ def popupmsg1(msg):
     label2 = ttk.Label(popup1, text="Current Duration in Seconds = "+ str(sleep_timer.get()))
     label2.grid(row=1,column=0, padx=(10,10),pady= (10,10),sticky = 'nsew')
     sleep_dur__combo_box = ttk.Combobox(popup1, width=5, textvariable=sleep_timer)
-    sleep_dur__combo_box['values'] = (1, 3, 5, 10) 
+    sleep_dur__combo_box['values'] = (1, 3, 5, 10)
     sleep_dur__combo_box.grid(row=3, column=0,padx=(150,4),sticky = 'w')
     sleep_dur__combo_box.insert(0,sleep_timer.get())
     def set_sleep_time():
@@ -232,14 +252,14 @@ def popupmsg2(msg):
     pop_up_button2 = tk.Button(popup2, text="Okay",command = popup2.destroy,state=tk.NORMAL)
     pop_up_button2.grid(row=3,column=0,padx=30,pady=(10,10),sticky = 'w')
     popup2.mainloop()
-      
+
 def samplesmsg():
    smp = tk.Tk()
    def set_samples():
       samples.set(int(smp_combo_box.get()))
       if smp_combo_box.get() == '1':
          cmd = 's'
-         bytes_returned = ser.write(cmd.encode())  
+         bytes_returned = ser.write(cmd.encode())
       if smp_combo_box.get() == '4':
          cmd = 't'
          bytes_returned = ser.write(cmd.encode())
@@ -258,33 +278,36 @@ def samplesmsg():
    cmd = 'p'
    bytes_returned = ser.write(cmd.encode())
    version.set(ser.readline(2).hex())
-   
+
    smp_combo_box = ttk.Combobox(smp, width=3, textvariable=samples)
    if int(version.get(),16) > 1001:
       smp_combo_box['values'] = (1,4,16,64)
    else:
       smp_combo_box['values'] = (4,16,64)
-      
+
    smp_combo_box.grid(row=1, column=0,padx=(110,4),pady=(1,1),sticky = 'w')
    smp_combo_box.insert(0,samples.get())
    smp_button = tk.Button(smp, text="Set Samples",command = set_samples,state=tk.NORMAL)
    smp_button.grid(row=3,column=0,padx=80,pady=(10,10),sticky = 'w')
-   
+
    smp.mainloop()
 
-ser_port_combo_box = ttk.Combobox(profile_frame, values = get_ports(), width=10)
-ser_port_combo_box.grid(row=2, column=0,padx=(10,4),sticky = 'w')
+ser_port_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+ser_port_frame.grid(row=1, column=0, padx=10, sticky='we')
+ser_port_combo_box = ttk.Combobox(ser_port_frame, values = get_ports(), width=10)
+ser_port_combo_box.grid(row=0, column=0, sticky = 'we')
+ser_port_frame.columnconfigure(0, weight=1)
 
-ser_port_cct = Label(profile_frame, text="BB1 Port = ",background='dark gray')
-ser_port_cct.grid(row=1, column=0, padx=(10,4),pady=0,sticky = 'w')
+ser_port_cct = Label(config_frame, text="BB1 Port = ",background='dark gray')
+ser_port_cct.grid(row=0, column=0, padx=10, sticky = 'w')
 
-reset_comm = tk.Button(profile_frame,text='Connect',command=lambda:init(str(ser_port_combo_box.get())),state=tk.NORMAL)
-reset_comm.grid(row=2,column=0, padx=(160,4),pady= 0,sticky = 'w')
+reset_comm = tk.Button(ser_port_frame,text='Connect',command=lambda:init(str(ser_port_combo_box.get())),state=tk.NORMAL)
+reset_comm.grid(row=0,column=2, sticky = 'w')
 
-reset_list = tk.Button(profile_frame,text='Refresh',command=lambda:update_ports(),state=tk.NORMAL)
-reset_list.grid(row=2,column=0, padx=(100,4),pady= 0,sticky = 'w')
+reset_list = tk.Button(ser_port_frame,text='Refresh',command=lambda:update_ports(),state=tk.NORMAL)
+reset_list.grid(row=0,column=1, sticky = 'w')
 
-#################################################################################    
+#################################################################################
 ###     GET DEVICE SPECIFIC CALIBRATION DATA
 #################################################################################
 
@@ -296,12 +319,12 @@ DEV_SPEC_ADJ_36 = 0.0073
 DEV_SPEC_ADJ_37 = 0.001
 DEV_SPEC_ADJ_42 = 0.0016
 DEV_SPEC_ADJ_45 = 0.002
-   
+
 def init(ser_port):
    global ser, sense_low, \
           CAL_ADJ_12, CAL_ADJ_15, CAL_ADJ_24, CAL_ADJ_30, CAL_ADJ_36, CAL_ADJ_37, CAL_ADJ_42, CAL_ADJ_45, \
           Offset_12, Offset_15, Offset_24, Offset_30, Offset_36, Offset_37, Offset_42, Offset_45
-     
+
    try:
       ser = serial.Serial(ser_port, baud_rate, timeout= None)
       ser_port_cct.configure(text = "Battlab Connected(" + ser.name+")", foreground='green', font=('Arial Bold',10))
@@ -369,19 +392,19 @@ def init(ser_port):
       CAL_ADJ_37 = CAL_37
       CAL_ADJ_42 = CAL_42
       CAL_ADJ_45 = CAL_45
-      
+
    except serial.SerialException as e:
       messagebox.showinfo("Error No Battlab Device Connected",e)
       pass
-      
+
 ports = list(serial.tools.list_ports.comports())
 
 for p in ports:
-   
+
    if p.vid == 0x0403 and p.pid == 0x6001:
       ser_num_prefix = p.serial_number[0] + p.serial_number[1]
       if ser_num_prefix == 'BB':
-         com_port = list(list_ports.grep("0403:6001"))[0][0]       
+         com_port = list(list_ports.grep("0403:6001"))[0][0]
          init(com_port)
 
 if com_port == 'NONE':
@@ -401,7 +424,7 @@ sense_resistor_LO.set(99)
 ###    SETUP MENU FUNCTIONS
 #################################################################################
 
-    
+
 def OpenFile():
     name = filedialog.askopenfilename(initialdir = 'C:/Users/dwpete3/Desktop',title = 'Select file', \
                                       filetypes = (('CSV Files','*.csv'),('all files','*.*')))
@@ -437,9 +460,9 @@ def OpenFile():
              ae_optimized_duration_entry_4.insert(0,row[15])
              sl_optimized_current_entry_4.delete(0,END)
              sl_optimized_current_entry_4.insert(0,row[16])
-             sl_optimized_duration_entry_4.delete(0,END)                                  
+             sl_optimized_duration_entry_4.delete(0,END)
              sl_optimized_duration_entry_4.insert(0,row[17])
-             dut_cutoff_optimized_entry_4.delete(0,END)                                   
+             dut_cutoff_optimized_entry_4.delete(0,END)
              dut_cutoff_optimized_entry_4.insert(0,row[18])
              batt_cap_optimized_entry_4.delete(0,END)
              batt_cap_optimized_entry_4.insert(0,row[19])
@@ -454,9 +477,9 @@ def OpenFile():
 def SaveFile():
     root.filename =  filedialog.asksaveasfilename(initialdir = 'C:/Users/dwpete3/Desktop',title = 'Select file',
                                 filetypes = (('CSV Files','*.csv'),('all files','*.*')))
-   
+
     with open((root.filename+'.csv'), 'w', newline='') as analysis:
-       writer = csv.writer(analysis, delimiter=',')         
+       writer = csv.writer(analysis, delimiter=',')
 
        writer.writerow(["Battery Chemistry",\
                         "Battery Capacity (mAh)",\
@@ -483,7 +506,7 @@ def SaveFile():
                         "Captured Battery Life (Days)",\
                         "Optimized Battery Life (Hours)",\
                         "Optimized Battery Life (Days)"])
-       
+
        writer.writerow([batt_chem.get(), \
                         battery_capactity_entry_1.get(),\
                         batt_cells.get(),\
@@ -508,26 +531,26 @@ def SaveFile():
                         captured_battery_life_hours_graph.cget("text"),\
                         captured_battery_life_days_graph.cget("text"),\
                         optimized_battery_life_hours_graph.cget("text"),\
-                        optimized_battery_life_days_graph.cget("text")])  
-               
+                        optimized_battery_life_days_graph.cget("text")])
+
     analysis.close
-    
+
 def export_data(): #Save to Outputfile
-           
+
    rows = zip(x,y)
 
    root.filename =  filedialog.asksaveasfilename(initialdir = 'C:/Users/dwpete3/Desktop',title = 'Select file',
                                 filetypes = (('CSV Files','*.csv'),('all files','*.*')))
-   
+
    with open((root.filename+'.csv'), 'w', newline='') as analysis:
       writer = csv.writer(analysis, delimiter=',')
       for row in rows:
          writer.writerow(row)
    analysis.close()
-   
-   
+
+
 def Linecolor():
-    ln_color, hex_color = colorchooser.askcolor(parent=frame,initialcolor=(255, 0, 0))   
+    ln_color, hex_color = colorchooser.askcolor(parent=frame,initialcolor=(255, 0, 0))
     line_color.set(hex_color)
 
 def SleepDurationTime():
@@ -544,7 +567,7 @@ def set_sample_number():
  #  print('MFR CAL ',data.get())
  #  data.set(ser.readline(2).hex())
 #   print('ADC CONFIG ',data.get())
-   
+
 def About():
     #messagebox.showinfo("Battlab-One Version 1.0 \n\r Contact www.bluebird-labs.com/support for issues")
    ser.reset_input_buffer()
@@ -572,12 +595,12 @@ def Disclaimer():
              EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.')
 
 
-def quitapp():
+def quitapp(force=False):
 
    u = tk.IntVar()
    u=0
-    
-   if messagebox.askokcancel("Quit", "Do you want to quit?"):
+
+   if force or messagebox.askokcancel("Quit", "Do you want to quit?"):
       try:
          cmd = 'i'
          bytes_returned = ser.write(cmd.encode())
@@ -586,10 +609,24 @@ def quitapp():
       except:
          root.destroy()
          pass
-      
+      sys.exit(0)
+
    else:
-      u=u+1 #Do nothing     
-   
+      u=u+1 #Do nothing
+
+# Signal handler
+def signal_handler(sig, frame):
+   print('Ctrl+C')
+   quitapp(force=True)
+signal.signal(signal.SIGINT, signal_handler)
+
+def check():
+   '''
+   Constantly check for unix signals (e.g. Ctrl+C) even if Tk window is not in focus
+   '''
+   root.after(50, check)
+root.after(50, check)
+
 #################################################################################
 ###   SETUP MENU SYSTEM
 #################################################################################
@@ -625,23 +662,23 @@ def data_plot(x,y,voltage, minimum,maximum,ae_duration,ae_current):
     #PLOT THE DATA
 
     global ax, f
-    
+
     f = plt.figure(figsize=(8, 4), dpi=100,clear=True)
     ax = f.add_subplot(111)
     plt.style.use('fast')
-    
+
     ax.set_title('Voltage: ' + voltage + ' volts   '  +'Capture Time:  '+ ae_duration + ' seconds' + \
-                       '\n' + 'Minimum: '  + minimum + 'mA    ' + 'Maximum: '+ maximum + 'mA    ' + 'Average Active Current: ' + ae_current + 'mA    ', fontsize=10)
+                       '\n' + 'Minimum: '  + minimum + 'mA    ' + 'Maximum: '+ maximum + 'mA    ' + 'Average Active Current: ' + ae_current + 'mA    ', fontsize=8)
 
     ax.set_xlabel('Milliseconds')
     ax.set_ylabel('Milliamps')
- 
+
     ax.plot(x, y, color=line_color.get(), linewidth=line_width.get())
 
     ax.grid(b=True, which='major', axis='both',color='black', linestyle='-', linewidth=.1)
-    
+
     cursor = Cursor(ax,color=line_color.get(), linewidth=.3)
-    
+
     canvas = FigureCanvasTkAgg(f, master=w)
     canvas.get_tk_widget().grid(row=0,column=6)
 
@@ -653,7 +690,7 @@ def data_plot(x,y,voltage, minimum,maximum,ae_duration,ae_current):
 
 #################################################################################
 ###    SETUP STATE OF CHARGE GRAPH
-#################################################################################   
+#################################################################################
 def update_soc_chart(eventObject):
     global ax1, f1
 
@@ -661,7 +698,7 @@ def update_soc_chart(eventObject):
        float(dut_cutoff.get())
     except ValueError:
        popupmsg("Please only enter 0123456789.")
-    
+
     f1 = plt.figure(figsize=(4, 2), dpi=100,clear=False)
     ax1 = f1.add_subplot(111)
 
@@ -673,15 +710,15 @@ def update_soc_chart(eventObject):
     dc1[:] = []
     soc_state = 0
     curve = 0
-    
+
     ax1.plot(soc_tab, ocv_tab)
     ax1.cla()
-    
+
     with open(soc_file.get(), 'r')as csvfile:
        inp1 = csv.reader(csvfile, delimiter = ',')
        headers = next(inp1, None)
        headers1= next(inp1, None)
-       headers2 = next(inp1, None)   
+       headers2 = next(inp1, None)
 
        for row in inp1:
           soc_tab.append(int(row[0]))
@@ -692,21 +729,21 @@ def update_soc_chart(eventObject):
           if float(ocv_tab[i]) < float(dut_cutoff.get()):
              soc_state=soc_state+1
           curve = ocv_tab[soc_state]
-          
+
     csvfile.close()
-    
+
     #PLOT THE DATA
     plt.style.use('fast')
-    
+
     ax1.set_title(soc_file.get())
-    
- 
+
+
     ax1.grid(b=True, which='major', axis='both',color='black', linewidth=.1)
 
     ax1.plot(soc_tab,ocv_tab, color='blue', linewidth=.5)
- 
+
     ax1.plot(soc_state,float(curve), marker='o',color='red', linewidth=1)
-    
+
     ax1.set_xlabel('SOC(%)')
     ax1.set_ylabel('OCV(V)')
     plt.ylim([min(ocv_tab)-.2,max(ocv_tab)+.2])
@@ -715,7 +752,7 @@ def update_soc_chart(eventObject):
     ax1.invert_xaxis()
 
     cursor1 = Cursor(ax1,color=line_color.get(), linewidth=.3)
-    
+
     canvas1 = FigureCanvasTkAgg(f1, master=w1)
     canvas1.get_tk_widget().grid(row=1,column=1,sticky='w')
 
@@ -724,19 +761,19 @@ def update_soc_chart(eventObject):
 #################################################################################
 ###    SETUP VOLTAGE PARAMETERS
 #################################################################################
-    
+
 def set_profile_params(eventObject):
 
     try:
         float(batt_cap.get())
     except ValueError:
         popupmsg("Please only enter 0123456789.")
-       
+
     if ((batt_chem.get() == 'AA-Alkaline' or batt_chem.get() == 'AAA-Alkaline') and batt_cells.get() == '1'):
         psu_combo_box.current(1)
-        soc_file.set('SOC_profiles/AA_AAA.csv') 
+        soc_file.set('SOC_profiles/AA_AAA.csv')
         battery_capactity_entry_1.delete(0,END)
-        battery_capactity_entry_1.insert(0,1500)   
+        battery_capactity_entry_1.insert(0,1500)
         voltage.set(1.5)
         dut_cutoff_voltage_entry.delete(0,END)
         dut_cutoff_voltage_entry.insert(0,1.0)
@@ -851,9 +888,9 @@ def set_battery_voltage():
    bytes_returned = ser.write(cmd.encode())
    time.sleep(0.5)
   # print("Pradio",int(p_radio.get()))
-  
+
    if int(p_radio.get()) == 1:
-      
+
       if voltage.get()== '1.2':
          cmd = 'a'
          bytes_returned = ser.write(cmd.encode())
@@ -912,7 +949,7 @@ def set_battery_voltage():
       p_radio.set(1)
       cmd = 'h'
       bytes_returned = ser.write(cmd.encode())
-   
+
    update_soc_chart(0)
 
    capture_active_event_button.configure(state=tk.NORMAL)
@@ -934,12 +971,12 @@ def TrigArmed():
     cmd = 'x'
     bytes_returned = ser.write(cmd.encode())
     time.sleep(0.5)
-    
+
 def capture_profile():
 
     try:
        float(runtime_duration.get())
-      
+
     except ValueError:
        popupmsg("Please only enter 0123456789.")
 
@@ -951,12 +988,12 @@ def capture_profile():
        bytes_returned = ser.write(cmd.encode())
        p_rad.config(foreground='green')
        p_rad1.config(foreground='black')
-    
+
     ser.reset_input_buffer()
     ser.reset_output_buffer()
-    
+
     ser.send_break(duration=0.25)
-    
+
     ae_captured_average_current_2 = 0
     ae_captured_duration_2 = 0
     counter = 0
@@ -966,13 +1003,13 @@ def capture_profile():
     t=0
 
     prev_value='NONE'
-    
+
     my_file=open('raw_byte_file.txt', mode='w+', buffering =(10*1024*1024))
 
 
     #USE TRIGGER FOR CAPTURE
     if trig_var.get()==1:
-       
+
         progress_label.config(text = 'Capturing...' )
         progress_label.config(foreground = 'red' )
 
@@ -980,14 +1017,14 @@ def capture_profile():
         cmd = 'x'
         bytes_returned = ser.write(cmd.encode())
         #time.sleep(0.5)
-        
+
         while (True):
-            if ser.in_waiting > 0:         
+            if ser.in_waiting > 0:
                 my_file.write(str(t))
                 my_file.write(',')
                 reading.set(ser.readline(2).hex())
                 my_file.write(str(reading.get()))
-                
+
                 my_file.write('\n')
                 t=t+1
                 root.update()
@@ -1009,23 +1046,23 @@ def capture_profile():
 
     else:
         #time.sleep(0.5)
-        
-        pb_vd = ttk.Progressbar(profile_frame, orient='horizontal', mode='determinate',
+
+        pb_vd = ttk.Progressbar(step2_frame, orient='horizontal', mode='determinate',
                                 maximum = float(runtime_duration.get()),length=100, variable=cntr)
-        
-        pb_vd.grid(row=10,column = 0,columnspan=1,padx=(215,1),sticky = 'w')
+
+        pb_vd.grid(row=0, column=1, sticky='we')
         pb_vd.start()
-    
+
         progress_label.config(text = 'Capturing...' )
         progress_label.config(foreground = 'red' )
-        
+
         cmd = 'z'
         bytes_returned = ser.write(cmd.encode())
-        
-      
+
+
         offset=time.clock()
-           
-        while counter < (float(runtime_duration.get())*0.81): 
+
+        while counter < (float(runtime_duration.get())*0.81):
             my_file.write(str(t))
             my_file.write(',')
             reading.set(ser.readline(2).hex())
@@ -1035,25 +1072,25 @@ def capture_profile():
             #t=int(time.clock()*1000)
             t=t+1
             root.update()
-        
+
             counter = time.clock()-offset
             cntr.set(counter)
             profile_frame.update()
 
         cmd = 'y'
         bytes_returned = ser.write(cmd.encode())
-        
+
         pb_vd.stop()
         pb_vd.destroy()
-      
+
         progress_label.config(text = 'Complete')
         progress_label.config(foreground = 'green')
-       
+
     my_file.close()
-    
+
     with open('raw_byte_file.txt', 'r')as csvfile:
         inp = csv.reader(csvfile, delimiter = ',')
-        for row in inp:        
+        for row in inp:
             if round((int(row[1],16)*LSB)/float(sense_resistor.get()),5) < 500 \
                   and round((int(row[1],16)*LSB)/float(sense_resistor.get()),5) != 0.0:
               x.append(int(row[0]))
@@ -1062,10 +1099,10 @@ def capture_profile():
               u=u+1  #Do Nothing
 
     csvfile.close()
-    
+
     x.pop()
     y.pop()
-   
+
     #Gather data and statistics
     ae_captured_average_current_2 = sum(y)/(len(y))
     ae_captured_duration_2 = (max(x)-min(x))/1000
@@ -1076,8 +1113,8 @@ def capture_profile():
     min_data.configure(text=str(min_current))
     avg_active_event_I_2.configure(text=str(round(ae_captured_average_current_2,2)))
 
-    #Fill out partial Step 4 Actuals  
-    ae_captured_current_label_4.configure(text=str(round(float(ae_captured_average_current_2),2)), foreground='black',background='dark gray') 
+    #Fill out partial Step 4 Actuals
+    ae_captured_current_label_4.configure(text=str(round(float(ae_captured_average_current_2),2)), foreground='black',background='dark gray')
     ae_captured_duration_label_4.configure(text=str(round(float(ae_captured_duration_2),3)), foreground='black',background='dark gray')
     dut_cutoff_captured_label_4.configure(text=str(float(dut_cutoff_voltage_entry.get())), foreground='black',background='dark gray')
 
@@ -1090,7 +1127,7 @@ def capture_profile():
     ae_optimized_duration_entry_4.insert(0,str(round(float(ae_captured_duration_2),3)))
     dut_cutoff_optimized_entry_4.delete(0,END)
     dut_cutoff_optimized_entry_4.insert(0,str(float(dut_cutoff_voltage_entry.get())))
-    
+
     avg_active_event_I_2.configure(foreground='green',state=tk.NORMAL)
     avg_active_event_I_units.configure(foreground='green',state=tk.NORMAL)
 
@@ -1100,13 +1137,13 @@ def capture_profile():
     shunt_button1.configure(state=tk.NORMAL)
     export_button.configure(state=tk.NORMAL)
     filemenu.entryconfigure(3,state=tk.NORMAL)
-    
+
     step2_label.configure(foreground='black')
     step3_label.configure(foreground='blue')
     sl_duration_entry_3.configure(state=tk.NORMAL)
-    
+
     os.remove('raw_byte_file.txt')
-      
+
 #################################################################################
 ###    STEP3 CAPTURE SLEEP CURRENT
 #################################################################################
@@ -1116,10 +1153,10 @@ def capture_sleep_profile():
 
    try:
        float(sleep_duration.get())
-      
+
    except ValueError:
        popupmsg("Please only enter 0123456789.")
-   
+
    soc_state = 0
    si[:] = []
 
@@ -1127,27 +1164,27 @@ def capture_sleep_profile():
 
    ser.reset_input_buffer()
    ser.reset_output_buffer()
-    
+
    sleep_reading = StringVar()
-   counter1 = 0    
+   counter1 = 0
    cntr1 = DoubleVar()
 
-   pb_vd_s = ttk.Progressbar(profile_frame, orient='horizontal', mode='determinate',
+   pb_vd_s = ttk.Progressbar(step3_frame, orient='horizontal', mode='determinate',
                                 maximum = sleep_timer.get(),length=100, variable=cntr1)
-        
-   pb_vd_s.grid(row=13,column = 0,columnspan=1,padx=(215,1),sticky = 'w')
+
+   pb_vd_s.grid(row=0,column=1,columnspan=1,sticky = 'we')
    pb_vd_s.start()
-    
+
    progress_label_s.config(text = 'Capturing...' )
    progress_label_s.config(foreground = 'red' )
-   
+
    if shunt_var.get() == 1: #Lo current shunt is OFF
       ser.reset_input_buffer()
       ser.reset_output_buffer()
       sleep_file=open('sleep_current.txt', mode='w', buffering =(10*1024*1024))
       offset1=time.clock()
       time.sleep(0.5)
-      
+
       cmd = 'z'
       bytes_returned = ser.write(cmd.encode())
 
@@ -1165,15 +1202,15 @@ def capture_sleep_profile():
 
       pb_vd_s.stop()
       pb_vd_s.destroy()
-      
+
       cmd = 'y'
       bytes_returned = ser.write(cmd.encode())
-      
+
       time.sleep(1)
       sleep_file.close()
       progress_label_s.config(text = 'Complete')
       progress_label_s.config(foreground = 'green')
-      
+
       #sl_captured_average_current_3 = (sum(si)/(len(si)))
       sl_captured_average_current_3 = (sum(si)/(len(si)))- lo_offset.get() #Input bias current minus Offset voltage calibration
 
@@ -1189,14 +1226,14 @@ def capture_sleep_profile():
          avg_sleep_event_I.configure(foreground='green')
          avg_sleep_event_I_units.configure(text='mA')
          avg_sleep_event_I_units.configure(foreground='green')
-      
+
    else:
 
       #Lo current shunt is ON
       ser.reset_input_buffer()
       ser.reset_output_buffer()
       sleep_file=open('sleep_current.txt', mode='w', buffering =(10*1024*1024))
-   
+
       time.sleep(0.5)
 
       offset1=time.clock()
@@ -1217,14 +1254,14 @@ def capture_sleep_profile():
 
       pb_vd_s.stop()
       pb_vd_s.destroy()
-      
+
       cmd = 'y'
       bytes_returned = ser.write(cmd.encode())
       sleep_file.close()
-      
+
       progress_label_s.config(text = 'Complete')
       progress_label_s.config(foreground = 'green')
-      
+
       #sl_captured_average_current_3 = (sum(si)/(len(si)))
       sl_captured_average_current_3 = (sum(si)/(len(si)))- lo_offset.get() #Input bias current minus Offset voltage calibration
 
@@ -1241,7 +1278,7 @@ def capture_sleep_profile():
          avg_sleep_event_I_units.configure(state=tk.NORMAL)
          avg_sleep_event_I_units.configure(text='uA')
          avg_sleep_event_I_units.configure(foreground='green')
-   
+
    with open(soc_file.get(), 'r')as csvfile:
       inp = csv.reader(csvfile, delimiter = ',')
       headers = next(inp, None)
@@ -1257,10 +1294,10 @@ def capture_sleep_profile():
       for i in range(len(my_list)-1):
          if (float(my_list[i][1])) < float(dut_cutoff_optimized_entry_4.get()):
             soc_state=soc_state+1
-         new_bat_cap = float(1-(soc_state/100))*float(battery_capactity_entry_1.get())    
-              
+         new_bat_cap = float(1-(soc_state/100))*float(battery_capactity_entry_1.get())
+
    #Update Results Step4 data
-      
+
    total_event_duration = float(sleep_duration.get()) + ae_captured_duration_2
 
    average_current_all_events = (sl_captured_average_current_3 * float(sleep_duration.get()) \
@@ -1285,14 +1322,14 @@ def capture_sleep_profile():
 
    #Calculate Captured Battery Life Hours
 
-   battery_life_hours =  float(new_bat_cap)/float(average_current_all_events)                                 
+   battery_life_hours =  float(new_bat_cap)/float(average_current_all_events)
    battery_life_days = float(battery_life_hours/24)
-                                       
+
    captured_battery_life_hours_graph.configure(text=str(round(float(battery_life_hours),2)),foreground='blue',background='dark gray')
    captured_battery_life_days_graph.configure(text=str(round(float(battery_life_days),2)),foreground='blue',background='dark gray')
 
    optimized_battery_life_hours_graph.configure(text=str(round(float(battery_life_hours),2)),foreground='blue',background='dark gray')
-   optimized_battery_life_days_graph.configure(text=str(round(float(battery_life_days),2)),foreground='blue',background='dark gray')                                
+   optimized_battery_life_days_graph.configure(text=str(round(float(battery_life_days),2)),foreground='blue',background='dark gray')
 
    filemenu.entryconfigure(2, state=tk.NORMAL)
    reset_button.configure(state=tk.NORMAL)
@@ -1305,7 +1342,7 @@ def capture_sleep_profile():
    os.remove('sleep_current.txt')
 
 #################################################################################
-###    STEP4 OPTIMIZED RESULTS 
+###    STEP4 OPTIMIZED RESULTS
 #################################################################################
 def optimize_profile():
    global optimized_battery_life_hours, optimized_battery_life_days, optimized_average_current_all_events
@@ -1318,12 +1355,12 @@ def optimize_profile():
       float(sl_optimized_current_entry_4.get())
       float(ae_optimized_duration_entry_4.get())
       float(ae_optimized_current_entry_4.get())
-      
+
    except ValueError:
       popupmsg("Please only enter 0123456789.")
 
    soc_state = 0
-   
+
    if batt_chem.get() == ('AA-Alkaline' or batt_chem.get() == 'AAA-Alkaline') and batt_cells.get() == '1':
       soc_file = 'SOC_profiles/AA_AAA.csv'
    elif batt_chem.get() == ('AA-Alkaline' or batt_chem.get() == 'AAA-Alkaline') and batt_cells.get() == '2':
@@ -1333,25 +1370,25 @@ def optimize_profile():
    elif batt_chem.get() == 'LI-Ion':
       soc_file = 'SOC_profiles/LiIon.csv'
    elif batt_chem.get()=='LiFePO4':
-      soc_file = 'SOC_profiles/LiFePO4.csv'      
+      soc_file = 'SOC_profiles/LiFePO4.csv'
    elif batt_chem.get() == 'AA-NiMH/NiCd' and batt_cells.get() == '1':
       soc_file = 'SOC_profiles/NiMH_AA.csv'
    elif batt_chem.get() == 'AA-NiMH/NiCd' and batt_cells.get() == '2':
       soc_file = 'SOC_profiles/NiMH_AA_2.csv'
    elif batt_chem.get() == 'AA-NiMH/NiCd' and batt_cells.get() == '3':
-      soc_file = 'SOC_profiles/NiMH_AA_3.csv'  
+      soc_file = 'SOC_profiles/NiMH_AA_3.csv'
    elif batt_chem.get() == 'AAA-NiMH/NiCd' and batt_cells.get() == '1':
       soc_file = 'SOC_profiles/NiMH_AAA.csv'
    elif batt_chem.get() == 'AAA-NiMH/NiCd' and batt_cells.get() == '2':
       soc_file = 'SOC_profiles/NiMH_AAA_2.csv'
    elif batt_chem.get() == 'AAA-NiMH/NiCd' and batt_cells.get() == '3':
-      soc_file = 'SOC_profiles/NiMH_AAA_3.csv'     
+      soc_file = 'SOC_profiles/NiMH_AAA_3.csv'
    elif batt_chem.get() == 'Li-Coin':
       soc_file = 'SOC_profiles/CoinCell.csv'
    elif batt_chem.get() == 'CR123':
       soc_file = 'SOC_profiles/CR123.csv'
-    
-      
+
+
    with open(soc_file, 'r')as csvfile:
       inp = csv.reader(csvfile, delimiter = ',')
       headers = next(inp, None)
@@ -1367,9 +1404,9 @@ def optimize_profile():
       for i in range(len(my_list)-1):
          if (float(my_list[i][1])) < float(dut_cutoff_optimized_entry_4.get()):
             soc_state=soc_state+1
-         new_bat_cap = float(1-(soc_state/100))*float(battery_capactity_entry_1.get())    
+         new_bat_cap = float(1-(soc_state/100))*float(battery_capactity_entry_1.get())
 
-   batt_cap_optimized_entry_4.delete(0,END)           
+   batt_cap_optimized_entry_4.delete(0,END)
    batt_cap_optimized_entry_4.insert(0,str(int(new_bat_cap)))
    optimized_average_current_all_events = (float(sl_optimized_duration_entry_4.get())* float(sl_optimized_current_entry_4.get()) \
                                            + (float(ae_optimized_duration_entry_4.get())* \
@@ -1404,13 +1441,13 @@ def reset():
     #Set sense resistor to low resistance
     shunt_var.set(1)
     shunt_button1.configure(state=tk.DISABLED)
-         
+
     optimize_button.configure(state=tk.DISABLED)
     filemenu.entryconfigure(2, state=tk.DISABLED)
     filemenu.entryconfigure(3, state=tk.DISABLED)
     save_button.configure(state=tk.DISABLED)
-    
-    
+
+
     psu_combo_box.configure(state=tk.NORMAL)
     trigger_box.config(state=tk.NORMAL)
     battery_chemistry_combo_box.configure(state=tk.NORMAL)
@@ -1418,7 +1455,7 @@ def reset():
 
     cmd = 'i' #turn voltage off
     bytes_returned = ser.write(cmd.encode())
-                                
+
     p_rad.configure(value=1,foreground='black',background='dark gray')
     p_rad.deselect()
     p_rad1.configure(value=0,foreground='red',background='dark gray')
@@ -1441,9 +1478,9 @@ def reset():
     ax.plot(x, y)
     ax.cla()
     plt.close('all')
-    
+
     data_plot(x,y,str(0),str(0),str(0),str(0),str(0))
-    
+
     ae_captured_average_current_2 = 0
     sl_captured_average_current_3 = 0
     ae_captured_duration_2 = 0
@@ -1452,7 +1489,7 @@ def reset():
     progress_label.configure(text='',background='dark gray')
     progress_label_s.configure(text='',background='dark gray')
     trig_var.set(0)
-    
+
     #Clear all of the Labels and Entry Fields
     ae_captured_current_label_4.configure(text='-',background='dark gray')
     ae_captured_duration_label_4.configure(text='-',background='dark gray')
@@ -1472,7 +1509,7 @@ def reset():
     sl_optimized_duration_entry_4.delete(0,END)
     sl_optimized_current_entry_4.delete(0,END)
     sl_optimized_duration_entry_4.delete(0,END)
- 
+
     average_current_profile_optimized_label_4.configure(text='-')
     optimized_battery_life_hours_graph.configure(text='-')
     optimized_battery_life_days_graph.configure(text='-')
@@ -1480,135 +1517,147 @@ def reset():
     average_current_profile_data.configure(text='-')
     max_data.configure(text='-')
     min_data.configure(text='-')
-    
+
     avg_active_event_I_2.configure(text='0.00', foreground = 'black')
     avg_active_event_I_units.configure(foreground = 'black')
     avg_sleep_event_I.configure(text='0000', foreground = 'black')
     avg_sleep_event_I_units.configure(foreground = 'black')
 
     reset_button = tk.Button(profile_frame,text='Reset',command=reset,state=tk.DISABLED)
-   
+
 #################################################################################
 ###    SETUP LABELS AND BUTTONS
 #################################################################################
 
-headerFont = font.Font(family="TkDefaultFont",size=9,underline=1)
-headerFont2 = font.Font(family="TkDefaultFont",size=12,underline=1)
+headerFont = font.Font(family="TkDefaultFont",size=8,underline=1)
+headerFont2 = font.Font(family="TkDefaultFont",size=10,underline=1)
 
 # STEP 1 - INPUT BATTERY INFO & PSU OUTPUT
 #Battery Information
-battery_chemistry_label_1 = Label(profile_frame, text='Battery Chemistry',background='dark gray')
-battery_chemistry_label_1.grid(row=4, column=0, padx=10,pady=0,sticky = 'w')
+battery_info_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+battery_info_frame.grid(row=3, column=0, padx=10, stick='we')
+battery_chemistry_label_1 = Label(battery_info_frame, text='Battery Chemistry',background='dark gray')
+battery_chemistry_label_1.grid(row=0, column=0, sticky = 'w')
 batt_chem = tk.StringVar()
-battery_chemistry_combo_box = ttk.Combobox(profile_frame, width=16, textvariable=batt_chem)
-battery_chemistry_combo_box['values'] = ('AA-Alkaline', 'AAA-Alkaline', 'LI-Ion','LiFePO4','AA-NiMH/NiCd', 'AAA-NiMH/NiCd','Li-Coin','CR123') 
-battery_chemistry_combo_box.grid(row=4, column=0,padx=(150,4),pady=(1,1),sticky = 'w')
+battery_chemistry_combo_box = ttk.Combobox(battery_info_frame, width=16, textvariable=batt_chem)
+battery_chemistry_combo_box['values'] = ('AA-Alkaline', 'AAA-Alkaline', 'LI-Ion','LiFePO4','AA-NiMH/NiCd', 'AAA-NiMH/NiCd','Li-Coin','CR123')
+battery_chemistry_combo_box.grid(row=0, column=1, columnspan=2, sticky = 'we')
 battery_chemistry_combo_box.current(0)
 battery_chemistry_combo_box.bind('<<ComboboxSelected>>', set_profile_params)
 
-battery_cells = Label(profile_frame, text='Number of Cells',background='dark gray')
-battery_cells.grid(row=5, column=0, padx=10,pady=(1,1),sticky = 'w')
+battery_cells = Label(battery_info_frame, text='Number of Cells',background='dark gray')
+battery_cells.grid(row=1, column=0, sticky = 'w')
 batt_cells = tk.StringVar()
-battery_cells_combo_box = ttk.Combobox(profile_frame, width=3, textvariable=batt_cells)
-battery_cells_combo_box['values'] = (1, 2, 3) 
-battery_cells_combo_box.grid(row=5, column=0,padx=(150,4),pady=(1,1),sticky = 'w')
+battery_cells_combo_box = ttk.Combobox(battery_info_frame, width=3, textvariable=batt_cells)
+battery_cells_combo_box['values'] = (1, 2, 3)
+battery_cells_combo_box.grid(row=1, column=1, sticky = 'we')
 battery_cells_combo_box.current(0)
 battery_cells_combo_box.bind('<<ComboboxSelected>>', set_profile_params)
-battery_cells_units = Label(profile_frame, text='cells',background='dark gray')
-battery_cells_units.grid(row=5, column=0, padx=(190,4),pady=(1,1),sticky = 'w')
+battery_cells_units = Label(battery_info_frame, text='cells',background='dark gray')
+battery_cells_units.grid(row=1, column=2, sticky = 'w')
 
-battery_capacity_label_1 = Label(profile_frame, text='Battery Capacity (1 cell)',background='dark gray')
-battery_capacity_label_1.grid(row=6, column=0, padx=10,pady=0,sticky = 'w')
+battery_capacity_label_1 = Label(battery_info_frame, text='Battery Capacity (1 cell)',background='dark gray')
+battery_capacity_label_1.grid(row=2, column=0, sticky = 'w')
 batt_cap = tk.StringVar()
-battery_capactity_entry_1 = Entry(profile_frame, width=6,textvariable=batt_cap)
-battery_capactity_entry_1.grid(row=6, column=0, padx=(150,4),pady=(1,1), sticky = 'w')
+battery_capactity_entry_1 = Entry(battery_info_frame, width=6,textvariable=batt_cap)
+battery_capactity_entry_1.grid(row=2, column=1, sticky='we')
 battery_capactity_entry_1.focus_set()
 battery_capactity_entry_1.insert(0,1500)
 #battery_capactity_entry_1.bind('<<ComboboxSelected>>', set_profile_params)
 #battery_capactity_entry_1.bind('<Return>', set_profile_params)
 #battery_capactity_entry_1.bind('<FocusOut>', set_profile_params)
-battery_capactity_units = Label(profile_frame, text='mAh',background='dark gray')
-battery_capactity_units.grid(row=6, column=0, padx=(190,4),pady=(1,1),sticky = 'w')
-  
+battery_capactity_units = Label(battery_info_frame, text='mAh',background='dark gray')
+battery_capactity_units.grid(row=2, column=2, sticky='w')
+
 #Voltage
-dut_cutoff_voltage = Label(profile_frame, text='DUT Cutoff Voltage',background='dark gray')
-dut_cutoff_voltage.grid(row=7, column=0, padx=10,pady=(1,1),sticky = 'w')
+dut_cutoff_voltage = Label(battery_info_frame, text='DUT Cutoff Voltage',background='dark gray')
+dut_cutoff_voltage.grid(row=3, column=0, sticky='w')
 dut_cutoff = tk.StringVar()
-dut_cutoff_voltage_entry = Entry(profile_frame, width=6, textvariable = dut_cutoff)
-dut_cutoff_voltage_entry.grid(row=7, column=0, padx=(150,4),pady=(1,1), sticky = 'w')
+dut_cutoff_voltage_entry = Entry(battery_info_frame, width=6, textvariable = dut_cutoff)
+dut_cutoff_voltage_entry.grid(row=3, column=1, sticky='we')
 dut_cutoff_voltage_entry.insert(0,1.0)
 dut_cutoff_voltage_entry.bind('<Return>', update_soc_chart)
 dut_cutoff_voltage_entry.bind('<FocusOut>', update_soc_chart)
 dut_cutoff_voltage_entry.focus_set()
-dut_cutoff_voltage_units = Label(profile_frame, text='volts',background='dark gray')
-dut_cutoff_voltage_units.grid(row=7, column=0, padx=(190,4),pady=(1,1),sticky = 'w')
+dut_cutoff_voltage_units = Label(battery_info_frame, text='volts',background='dark gray')
+dut_cutoff_voltage_units.grid(row=3, column=2, sticky = 'w')
 
-volt_lab = Label(profile_frame, text='PSU Voltage Output',background='dark gray')
-volt_lab.grid(row=8, column=0, padx=10,pady=(1,1),sticky = 'w')
+volt_lab = Label(battery_info_frame, text='PSU Voltage Output',background='dark gray')
+volt_lab.grid(row=4, column=0, sticky = 'w')
 voltage = tk.StringVar()
-psu_combo_box = ttk.Combobox(profile_frame, width=3, textvariable=voltage)
-psu_combo_box['values'] = (1.2, 1.5, 2.4, 3.0, 3.2, 3.6, 3.7, 4.2, 4.5) 
-psu_combo_box.grid(row=8, column=0,padx=(150,4),pady=(1,1),sticky = 'w')
+psu_combo_box = ttk.Combobox(battery_info_frame, width=3, textvariable=voltage)
+psu_combo_box['values'] = (1.2, 1.5, 2.4, 3.0, 3.2, 3.6, 3.7, 4.2, 4.5)
+psu_combo_box.grid(row=4, column=1, sticky = 'we')
 psu_combo_box.current(1)
-psu_combo_box_units = Label(profile_frame, text='volts',background='dark gray')
-psu_combo_box_units.grid(row=8, column=0, padx=(190,4),pady=(1,1),sticky = 'w')
+psu_combo_box_units = Label(battery_info_frame, text='volts',background='dark gray')
+psu_combo_box_units.grid(row=4, column=2, sticky = 'w')
 voltage.set('1.5')
-psu_lab = Label(profile_frame, text='PSU Output',background='dark gray')
-psu_lab.grid(row=9, column=0, padx=10,pady=(1,1),sticky = 'w')
+
+psu_frame = ttk.Frame(battery_info_frame, style='TLabelframe', borderwidth=0)
+psu_frame.grid(row=5, column=0, columnspan=3, sticky='we')
+psu_lab = Label(psu_frame, text='PSU Output',background='dark gray')
+psu_lab.grid(row=0, column=0, sticky = 'w')
 
 def psu_off():
    p_rad.configure(foreground='black',background='dark gray')
    p_rad1.configure(foreground='red',background='dark gray')
    cmd = 'i'
    bytes_returned = ser.write(cmd.encode())
-   
-p_radio = IntVar()
-p_rad = Radiobutton(profile_frame, text = 'On', variable = p_radio, value = 1,
-                    command = set_battery_voltage,background='dark gray')
-p_rad.grid(row=9, column=0, padx=80, pady=(1,1),sticky = 'w')
 
-p_rad1 = Radiobutton(profile_frame, text = 'Off', variable = p_radio, value = 0, command = psu_off,
-                     foreground='red',background='dark gray')
-p_rad1.grid(row=9, column=0, padx=(120,10),pady=(1,1), sticky = 'w')
+p_radio = IntVar()
+p_rad = Radiobutton(psu_frame, text = 'On', variable = p_radio, value = 1,
+                    command = set_battery_voltage,background='dark gray', highlightthickness=0)
+p_rad.grid(row=0, column=1, sticky = 'w')
+
+p_rad1 = Radiobutton(psu_frame, text = 'Off', variable = p_radio, value = 0, command = psu_off,
+                     foreground='red',background='dark gray', highlightthickness=0)
+p_rad1.grid(row=0, column=2, sticky = 'w')
 
 trig_PSU_var = IntVar()
-trigger_box = tk.Checkbutton(profile_frame, text='Trigger PSU on Capture', variable=trig_PSU_var, background='dark gray', state=tk.NORMAL)
-trigger_box.grid(row=9, column=0, padx=(160,4),pady=(1,1),sticky='w')
+trigger_box = tk.Checkbutton(psu_frame, text='Trigger PSU on Capture', variable=trig_PSU_var, background='dark gray', state=tk.NORMAL, highlightthickness=0)
+trigger_box.grid(row=0, column=3, sticky='w')
 trig_PSU_var.set(0)
 
 #STEP2 - SET UP CAPTURE TIME AND EXECUTE CAPTURE
-rt_c = Label(profile_frame, text='DUT Active Duration (s)',background='dark gray')
-rt_c.grid(row=11, column=0, padx=10,pady=(1,1),sticky = 'w')
+rt_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+rt_frame.grid(row=5, column=0, padx=10, sticky='we')
+rt_c = Label(rt_frame, text='DUT Active Duration (s)',background='dark gray')
+rt_c.grid(row=0, column=0, sticky = 'w')
 runtime_duration = tk.StringVar()
-rt_dur = Entry(profile_frame, width=6,textvariable=runtime_duration)
-rt_dur.grid(row=11, column=0, padx=(140,4),pady=(1,1), sticky = 'w')
+rt_dur = Entry(rt_frame, width=6,textvariable=runtime_duration)
+rt_dur.grid(row=0, column=1, sticky = 'we')
 rt_dur.focus_set()
 rt_dur.insert(0,10)
 rt_dur.configure(state=tk.DISABLED)
 
-choice_lab = Label(profile_frame, text=' -OR- ',background='dark gray')
-choice_lab.grid(row=11, column=0, padx=(180,2),pady=(1,1),sticky = 'w')
+choice_lab = Label(rt_frame, text=' -OR- ',background='dark gray')
+choice_lab.grid(row=0, column=2, sticky = 'w')
 
 trig_var = IntVar()
-trigger_box = tk.Checkbutton(profile_frame, text='Ext Trig', variable=trig_var,command = TrigArmed,background='dark gray', state=tk.DISABLED)
-trigger_box.grid(row=11, column=0, padx=(215,4),pady=(1,1),sticky='w')
+trigger_box = tk.Checkbutton(rt_frame, text='Ext Trig', variable=trig_var,command = TrigArmed,background='dark gray', state=tk.DISABLED, highlightthickness=0)
+trigger_box.grid(row=0, column=3, sticky='w')
 
 trig_label = ttk.Label(profile_frame, text='', background='dark gray')
-trig_label.grid(row=11, column = 0, padx=(210,4),pady=(1,1),sticky='w')
+trig_label.grid(row=0, column=4, sticky='w')
 
-progress_label = ttk.Label(profile_frame, text='',background='dark gray')
-progress_label.grid(row=10, column = 0, padx=(230,4),sticky='w')
-    
-capture_active_event_button = tk.Button(profile_frame,text='Capture Active',command=capture_profile,state=tk.DISABLED)
-capture_active_event_button.grid(row=12,column=0, padx=(10,4),pady=(1,1),sticky = 'w')
-avg_active_event_I_2 = ttk.Label(profile_frame, text='0.00',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
-avg_active_event_I_2.grid(row=12, column = 0, padx= (120,4),pady=(1,1), sticky = 'w')
-avg_active_event_I_units = ttk.Label(profile_frame, text='mA',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
-avg_active_event_I_units.grid(row=12, column = 0, padx=(170,4),pady=(1,1), sticky = 'w')
+step2_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+step2_frame.grid(row=4, column=0, sticky='we')
+progress_label = ttk.Label(step2_frame, text='',background='dark gray')
+progress_label.grid(row=0, column=1, padx=10, sticky='we')
+
+capture_active_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+capture_active_frame.grid(row=6, column=0, padx=10, sticky='we')
+capture_active_event_button = tk.Button(capture_active_frame,text='Capture Active',command=capture_profile,state=tk.DISABLED)
+capture_active_event_button.grid(row=0, column=0, sticky = 'w')
+avg_active_event_I_2 = ttk.Label(capture_active_frame, text='0.00',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
+avg_active_event_I_2.grid(row=0, column=1, padx=10, sticky = 'we')
+avg_active_event_I_units = ttk.Label(capture_active_frame, text='mA',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
+avg_active_event_I_units.grid(row=0, column=2, sticky = 'w')
 
 #STEP3 - CAPTURE SLEEP EVENT CURRENT WIDGETS
-sl_range_labe1_3 = Label(profile_frame, text='Current Range',background='dark gray')
-sl_range_labe1_3.grid(row=14, column=0, padx=(210,2) ,pady=(1,1),sticky = 'w')
+
+#sl_range_labe1_3 = Label(profile_frame, text='Current Range',background='dark gray')
+#sl_range_labe1_3.grid(row=14, column=0, padx=(210,2) ,pady=(1,1),sticky = 'w')
 
 def select_lo_shunt():
    #Turn OFF low current sense resistor
@@ -1620,187 +1669,194 @@ def select_hi_shunt():
    cmd = 'k'
    bytes_returned = ser.write(cmd.encode())
 
+sleep_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+sleep_frame.grid(row=8, column=0, padx=10, sticky='we')
 shunt_var = IntVar()
-shunt_button = Radiobutton(profile_frame, text="800uA - 500mA", command=select_lo_shunt, variable=shunt_var, value=1, state=tk.DISABLED)
-shunt_button.grid(row=14, column=0, padx=(205,4),pady=(1,1),sticky='w')
-shunt_button1 = Radiobutton(profile_frame, text="10uA - 800uA", command=select_hi_shunt,variable=shunt_var, value=2, state=tk.DISABLED)
-shunt_button1.grid(row=15, column=0, padx=(205,4),pady=(1,1),sticky='w')
+shunt_button = Radiobutton(sleep_frame, text="800uA - 500mA", command=select_lo_shunt, variable=shunt_var, value=1, state=tk.DISABLED, highlightthickness=0)
+shunt_button.grid(row=0, column=3, sticky='w')
+shunt_button1 = Radiobutton(sleep_frame, text="10uA - 800uA", command=select_hi_shunt,variable=shunt_var, value=2, state=tk.DISABLED, highlightthickness=0)
+shunt_button1.grid(row=1, column=3, sticky='w')
 shunt_var.set(1)
 
-sl_duration_labe1_3 = Label(profile_frame, text='DUT Sleep Duration',background='dark gray')
-sl_duration_labe1_3.grid(row=14, column=0, padx=10,pady=(1,1),sticky = 'w')
+sl_duration_labe1_3 = Label(sleep_frame, text='DUT Sleep Duration',background='dark gray')
+sl_duration_labe1_3.grid(row=0, column=0, sticky = 'w')
 sleep_duration=tk.StringVar()
-sl_duration_entry_3 = Entry(profile_frame, width=6,textvariable=sleep_duration)
-sl_duration_entry_3.grid(row=14, column=0,padx=(120,4),pady=(1,1),sticky = 'w')
+sl_duration_entry_3 = Entry(sleep_frame, textvariable=sleep_duration)
+sl_duration_entry_3.grid(row=0, column=1, sticky = 'w')
 sl_duration_entry_3.insert(0,60)
 sl_duration_entry_3.configure(state=tk.DISABLED)
-sl_duration_units_lab_3 = Label(profile_frame, text='Sec',background='dark gray')
-sl_duration_units_lab_3.grid(row=14, column=0, padx=(160,2),pady=(1,1),sticky = 'w')
+sl_duration_units_lab_3 = Label(sleep_frame, text='Sec',background='dark gray')
+sl_duration_units_lab_3.grid(row=0, column=2, sticky = 'w')
 
-progress_label_s = ttk.Label(profile_frame, text='',background='dark gray')
-progress_label_s.grid(row=13, column = 0, padx=(230,4),sticky='w')
-   
-capture_sleep_btn_3 = tk.Button(profile_frame,text='Capture Sleep',command=capture_sleep_profile,state=tk.DISABLED)
-capture_sleep_btn_3.grid(row=15,column=0, padx=(10,4),pady=(1,1),sticky = 'w')
+step3_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+step3_frame.grid(row=7, column=0, sticky='we')
+progress_label_s = ttk.Label(step3_frame, text='',background='dark gray')
+progress_label_s.grid(row=0, column=1, padx=10, sticky='w')
 
-avg_sleep_event_I = ttk.Label(profile_frame, text='0000',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
-avg_sleep_event_I.grid(row=15, column = 0, padx= (120,4),pady=(1,1), sticky = 'w')
+capture_sleep_btn_3 = tk.Button(sleep_frame,text='Capture Sleep',command=capture_sleep_profile,state=tk.DISABLED)
+capture_sleep_btn_3.grid(row=1, column=0, sticky = 'w')
 
-avg_sleep_event_I_units = ttk.Label(profile_frame, text='uA',font=('Arial Bold',10), foreground = 'black',background='dark gray')
-avg_sleep_event_I_units.grid(row=15, column = 0, padx=(170,4),pady=(1,1), sticky = 'w')
+avg_sleep_event_I = ttk.Label(sleep_frame, text='0000',font=('Arial Bold',10), foreground = 'black',background='dark gray',state=tk.DISABLED)
+avg_sleep_event_I.grid(row=1, column=1, sticky = 'w')
+
+avg_sleep_event_I_units = ttk.Label(sleep_frame, text='uA',font=('Arial Bold',10), foreground = 'black',background='dark gray')
+avg_sleep_event_I_units.grid(row=1, column=2, sticky = 'w')
 
 
 #STEP4 - RESULTS AND OPTIMIZE  WIDGETS
 #Section 4 Fields
 
+results_frame = ttk.Frame(config_frame, style='TLabelframe', borderwidth=0)
+results_frame.grid(row=10, column=0, padx=10, stick='we')
+
 #Profile Headers
-captured_profile_label = ttk.Label(profile_frame, text='Captured' ,font=headerFont,foreground='blue',background='dark gray')
-captured_profile_label.grid(row=17, column = 0, padx=(150,4),pady=(1,1),sticky = 'w')
-optimized_profile_label = Label(profile_frame, text='Optimized',foreground='blue',font=headerFont,background='dark gray')
-optimized_profile_label.grid(row=17, column=0, padx=(210,1),pady=(1,1),sticky = 'w')
+captured_profile_label = ttk.Label(results_frame, text='Captured' ,font=headerFont,foreground='blue',background='dark gray')
+captured_profile_label.grid(row=0, column=1, sticky = 'w')
+optimized_profile_label = Label(results_frame, text='Optimized',foreground='blue',font=headerFont,background='dark gray')
+optimized_profile_label.grid(row=0, column=2, sticky = 'w')
 
 #Active Event Current
-ae_current_label_4 = Label(profile_frame, text='Active Event Current',background='dark gray')
-ae_current_label_4.grid(row=18, column=0, padx=10,pady=(1,1),sticky = 'w')
-ae_captured_current_label_4 = Label(profile_frame, text='-', background='dark gray')
-ae_captured_current_label_4.grid(row=18, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-ae_optimized_current_entry_4 = Entry(profile_frame, width=7)
-ae_optimized_current_entry_4.grid(row=18, column=0,padx=(210,4),pady=(1,1),sticky = 'w')
-ae_current_units_lab_4 = Label(profile_frame, text='mA',background='dark gray')
-ae_current_units_lab_4.grid(row=18, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
+ae_current_label_4 = Label(results_frame, text='Active Event Current',background='dark gray')
+ae_current_label_4.grid(row=1, column=0, sticky = 'w')
+ae_captured_current_label_4 = Label(results_frame, text='-', background='dark gray')
+ae_captured_current_label_4.grid(row=1, column=1, padx=5, sticky = 'w')
+ae_optimized_current_entry_4 = Entry(results_frame, width=7)
+ae_optimized_current_entry_4.grid(row=1, column=2, sticky = 'w')
+ae_current_units_lab_4 = Label(results_frame, text='mA',background='dark gray')
+ae_current_units_lab_4.grid(row=1, column=3, sticky = 'w')
 
 #Active Event Duration
-ae_duration_label_4 = Label(profile_frame, text='Active Event Duration',background='dark gray')
-ae_duration_label_4.grid(row=19, column=0, padx=10,pady=4,sticky = 'w')
-ae_captured_duration_label_4 = Label(profile_frame, text='-',background='dark gray')
-ae_captured_duration_label_4.grid(row=19, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-ae_optimized_duration_entry_4 = Entry(profile_frame, width=7)
-ae_optimized_duration_entry_4.grid(row=19, column=0,padx=(210,4),pady=(1,1),sticky = 'w')
-ae_duration_units_lab_4 = Label(profile_frame, text='S',background='dark gray')
-ae_duration_units_lab_4.grid(row=19, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
+ae_duration_label_4 = Label(results_frame, text='Active Event Duration',background='dark gray')
+ae_duration_label_4.grid(row=2, column=0, sticky = 'w')
+ae_captured_duration_label_4 = Label(results_frame, text='-',background='dark gray')
+ae_captured_duration_label_4.grid(row=2, column=1, padx=5, sticky = 'w')
+ae_optimized_duration_entry_4 = Entry(results_frame, width=7)
+ae_optimized_duration_entry_4.grid(row=2, column=2, sticky = 'w')
+ae_duration_units_lab_4 = Label(results_frame, text='Sec',background='dark gray')
+ae_duration_units_lab_4.grid(row=2, column=3, sticky = 'w')
 
 #Sleep Event Current
-sl_current_label_4 = Label(profile_frame, text='Sleep Current',background='dark gray')
-sl_current_label_4.grid(row=20, column=0, padx=10,pady=(1,1),sticky = 'w')
-sl_captured_current_label_4 = Label(profile_frame, text='-',background='dark gray')
-sl_captured_current_label_4.grid(row=20, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-sl_optimized_current_entry_4 = Entry(profile_frame, width=7)
-sl_optimized_current_entry_4.grid(row=20, column=0,padx=(210,4),pady=(1,1),sticky = 'w')
-sl_current_units_lab_4 = Label(profile_frame, text='mA',background='dark gray')
-sl_current_units_lab_4.grid(row=20, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
+sl_current_label_4 = Label(results_frame, text='Sleep Current',background='dark gray')
+sl_current_label_4.grid(row=3, column=0, sticky = 'w')
+sl_captured_current_label_4 = Label(results_frame, text='-',background='dark gray')
+sl_captured_current_label_4.grid(row=3, column=1, padx=5, sticky = 'w')
+sl_optimized_current_entry_4 = Entry(results_frame, width=7)
+sl_optimized_current_entry_4.grid(row=3, column=2, sticky = 'w')
+sl_current_units_lab_4 = Label(results_frame, text='mA',background='dark gray')
+sl_current_units_lab_4.grid(row=3, column=3, sticky = 'w')
 
 #Sleep Event Duration
-sl_duration_labe1_4 = Label(profile_frame, text='Sleep Duration',background='dark gray')
-sl_duration_labe1_4.grid(row=21, column=0, padx=10,pady=(1,1),sticky = 'w')
-sl_captured_duration_label_4 = Label(profile_frame, text='-',background='dark gray')
-sl_captured_duration_label_4.grid(row=21, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-sl_optimized_duration_entry_4 = Entry(profile_frame, width=7)
-sl_optimized_duration_entry_4.grid(row=21, column=0,padx=(210,4),pady=(1,1),sticky = 'w')
-sl_duration_units_lab_4 = Label(profile_frame, text='S',background='dark gray')
-sl_duration_units_lab_4.grid(row=21, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
-      
+sl_duration_labe1_4 = Label(results_frame, text='Sleep Duration',background='dark gray')
+sl_duration_labe1_4.grid(row=4, column=0, sticky = 'w')
+sl_captured_duration_label_4 = Label(results_frame, text='-',background='dark gray')
+sl_captured_duration_label_4.grid(row=4, column=1, padx=5, sticky = 'w')
+sl_optimized_duration_entry_4 = Entry(results_frame, width=7)
+sl_optimized_duration_entry_4.grid(row=4, column=2, sticky = 'w')
+sl_duration_units_lab_4 = Label(results_frame, text='Sec',background='dark gray')
+sl_duration_units_lab_4.grid(row=4, column=3, sticky = 'w')
+
 #DUT Cutoff Voltage
-dut_cutoff_label_4 = Label(profile_frame, text='DUT Cutoff Voltage',background='dark gray')
-dut_cutoff_label_4.grid(row=22, column=0, padx=10,pady=(1,1),sticky = 'w')
-dut_cutoff_captured_label_4 = Label(profile_frame, text='-',background='dark gray')
-dut_cutoff_captured_label_4.grid(row=22, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-dut_cutoff_optimized_entry_4 = Entry(profile_frame, width=7)
-dut_cutoff_optimized_entry_4.grid(row=22, column=0, padx=(210,4),pady=(1,1), sticky = 'w')
-dut_cutoff_units_lab_4 = Label(profile_frame, text='volts',background='dark gray')
-dut_cutoff_units_lab_4.grid(row=22, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
+dut_cutoff_label_4 = Label(results_frame, text='DUT Cutoff Voltage',background='dark gray')
+dut_cutoff_label_4.grid(row=5, column=0, sticky = 'w')
+dut_cutoff_captured_label_4 = Label(results_frame, text='-',background='dark gray')
+dut_cutoff_captured_label_4.grid(row=5, column=1, padx=5, sticky = 'w')
+dut_cutoff_optimized_entry_4 = Entry(results_frame, width=7)
+dut_cutoff_optimized_entry_4.grid(row=5, column=2, sticky = 'w')
+dut_cutoff_units_lab_4 = Label(results_frame, text='volts',background='dark gray')
+dut_cutoff_units_lab_4.grid(row=5, column=3, sticky = 'w')
 
 #Battery Capacity
-batt_cap_label_4 = Label(profile_frame, text='Effective Battery Capacity',background='dark gray')
-batt_cap_label_4.grid(row=23, column=0, padx=10,pady=(1,1),sticky = 'w')
-batt_cap_captured_label_4 = Label(profile_frame, text='-',background='dark gray')
-batt_cap_captured_label_4.grid(row=23, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-batt_cap_optimized_entry_4 = Entry(profile_frame, width=7)
-batt_cap_optimized_entry_4.grid(row=23, column=0, padx=(210,4),pady=(1,1), sticky = 'w')
-batt_cap_units_lab_4 = Label(profile_frame, text='mAh',background='dark gray')
-batt_cap_units_lab_4.grid(row=23, column=0, padx=(260,2),pady=(1,1),sticky = 'w')
+batt_cap_label_4 = Label(results_frame, text='Effective Battery Capacity',background='dark gray')
+batt_cap_label_4.grid(row=6, column=0, sticky = 'w')
+batt_cap_captured_label_4 = Label(results_frame, text='-',background='dark gray')
+batt_cap_captured_label_4.grid(row=6, column=1, padx=5, sticky = 'w')
+batt_cap_optimized_entry_4 = Entry(results_frame, width=7)
+batt_cap_optimized_entry_4.grid(row=6, column=2, sticky = 'w')
+batt_cap_units_lab_4 = Label(results_frame, text='mAh',background='dark gray')
+batt_cap_units_lab_4.grid(row=6, column=3, sticky = 'w')
 
 #Average Current Profile
-average_current_profile_label_4 = Label(profile_frame, text='Average Current Profile',background='dark gray')
-average_current_profile_label_4.grid(row=24, column=0, padx=10,pady=(1,1),sticky = 'w')
-average_current_profile_captured_label_4 = Label(profile_frame, text='-',background='dark gray')
-average_current_profile_captured_label_4.grid(row=24, column=0, padx=(150,4),pady=(1,1),sticky = 'w')
-average_current_profile_optimized_label_4 = Label(profile_frame, text='-',foreground='black', background='dark gray')
-average_current_profile_optimized_label_4.grid(row=24, column=0, padx=(210,4),pady=(1,1),sticky = 'w')
-average_current_profile_units_lab_4 = Label(profile_frame, text='mA',foreground='black',background='dark gray')
-average_current_profile_units_lab_4.grid(row=24, column=0,padx=(260,2),pady=(1,1),sticky = 'w')
+average_current_profile_label_4 = Label(results_frame, text='Average Current Profile',background='dark gray')
+average_current_profile_label_4.grid(row=7, column=0, sticky = 'w')
+average_current_profile_captured_label_4 = Label(results_frame, text='-',background='dark gray')
+average_current_profile_captured_label_4.grid(row=7, column=1, sticky = 'w')
+average_current_profile_optimized_label_4 = Label(results_frame, text='-',foreground='black', background='dark gray')
+average_current_profile_optimized_label_4.grid(row=7, column=2, padx=5, sticky = 'w')
+average_current_profile_units_lab_4 = Label(results_frame, text='mA',foreground='black',background='dark gray')
+average_current_profile_units_lab_4.grid(row=7, column=3, sticky = 'w')
 
 #Statistics
-statistics_label = Label(profile_frame, font=headerFont,text='Statistics',background='dark gray')
-statistics_label.grid(row=20, column=1, padx=5,pady=(1,1),sticky = 'w')
-average_current_profile = Label(profile_frame, text='Average Active Event Current (mA) = ',background='dark gray')
-average_current_profile.grid(row=21, column=1, padx=5,pady=(1,1),sticky = 'w')
-average_current_profile_data = Label(profile_frame, text='-',background='dark gray')
-average_current_profile_data.grid(row=21, column=1, padx=(240,2),pady=(1,1),sticky = 'w')
-max_label = ttk.Label(profile_frame, text='Max active event current captured (mA) = ',background='dark gray')
-max_label.grid(row=22, column = 1, rowspan=1, padx=5,pady=(2,2),sticky = 'w')
-max_data = Label(profile_frame, text='-',background='dark gray')
-max_data.grid(row=22, column=1,  rowspan=1,padx=(240,2),pady=(2,2),sticky = 'w')
-min_label = ttk.Label(profile_frame, text='Min active event current captured (mA) = ',background='dark gray')
-min_label.grid(row=23, column = 1,padx=5,pady=(2,2),sticky = 'w')
-min_data = Label(profile_frame, text='-',background='dark gray')
-min_data.grid(row=23,column=1,padx=(240,2),pady=(2,2),sticky = 'w')
+stats_frame = ttk.Frame(graphs_frame, style='TLabelframe', borderwidth=0)
+stats_frame.grid(row=1, column=0, padx=5, stick='nwe')
+statistics_label = Label(stats_frame, font=headerFont,text='Statistics',background='dark gray')
+statistics_label.grid(row=0, column=0, sticky = 'w')
+average_current_profile = Label(stats_frame, text='Average Active Event Current (mA) = ',background='dark gray')
+average_current_profile.grid(row=1, column=0, sticky = 'w')
+average_current_profile_data = Label(stats_frame, text='-',background='dark gray')
+average_current_profile_data.grid(row=1, column=1, sticky = 'w')
+max_label = ttk.Label(stats_frame, text='Max active event current captured (mA) = ',background='dark gray')
+max_label.grid(row=2, column=0, sticky = 'w')
+max_data = Label(stats_frame, text='-',background='dark gray')
+max_data.grid(row=2, column=1, sticky = 'w')
+min_label = ttk.Label(stats_frame, text='Min active event current captured (mA) = ',background='dark gray')
+min_label.grid(row=3, column=0, sticky = 'w')
+min_data = Label(stats_frame, text='-',background='dark gray')
+min_data.grid(row=3,column=1, sticky = 'w')
 
 #Profile Headers
-captured_profile_label1 = ttk.Label(profile_frame, text='Captured' ,foreground='blue',background='dark gray',font=headerFont2)
-captured_profile_label1.grid(row=25, column = 1, padx=(220,4),pady=(1,1),sticky = 'w')
+hours_frame = ttk.Frame(graphs_frame, style='TLabelframe', borderwidth=0)
+hours_frame.grid(row=2, column=0, padx=5, stick='we')
+captured_profile_label1 = ttk.Label(hours_frame, text='Captured' ,foreground='blue',background='dark gray',font=headerFont2)
+captured_profile_label1.grid(row=0, column=1, sticky = 'w')
 
-optimized_profile_label1 = Label(profile_frame, text='Optimized',foreground='blue',background='dark gray',font=headerFont2)
-optimized_profile_label1.grid(row=25, column=1, padx=(300,1),pady=(1,1),sticky = 'w')
+optimized_profile_label1 = Label(hours_frame, text='Optimized',foreground='blue',background='dark gray',font=headerFont2)
+optimized_profile_label1.grid(row=0, column=2, sticky = 'w')
 
 
 #Battery Life Hours
-batt_life_hours_captured_graph_label = ttk.Label(profile_frame, text='Estimated Battery Life (hours) ',foreground = 'blue',background='dark gray',font=("TkDefaultFont", 12))
-batt_life_hours_captured_graph_label.grid(row=26, column=1, padx=5,pady=(1,1), sticky = 'w')
-captured_battery_life_hours_graph = ttk.Label(profile_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
-captured_battery_life_hours_graph.grid(row=26, column = 1,padx=(240,4),pady=(1,1),sticky = 'w')
-optimized_battery_life_hours_graph = ttk.Label(profile_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
-optimized_battery_life_hours_graph.grid(row=26, column = 1,padx=(320,4),pady=(1,1),sticky = 'w')
-#optimized_battery_life_hours_units_lab_4 = Label(profile_frame, text='hours',foreground = 'blue',background='dark gray')
-#optimized_battery_life_hours_units_lab_4.grid(row=26, column=1,padx=(300,2),pady=(1,1),sticky = 'w')
+batt_life_hours_captured_graph_label = ttk.Label(hours_frame, text='Estimated Battery Life (hours) ',foreground = 'blue',background='dark gray',font=("TkDefaultFont", 12))
+batt_life_hours_captured_graph_label.grid(row=1, column=0, sticky = 'w')
+captured_battery_life_hours_graph = ttk.Label(hours_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
+captured_battery_life_hours_graph.grid(row=1, column=1, sticky = 'w')
+optimized_battery_life_hours_graph = ttk.Label(hours_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
+optimized_battery_life_hours_graph.grid(row=1, column=2,sticky = 'w')
 
 #Battery Life Days
-batt_life_days_captured_graph_label = ttk.Label(profile_frame, text='Estimated Battery Life (days) ', foreground = 'blue',background='dark gray',font=("TkDefaultFont", 12))
-batt_life_days_captured_graph_label.grid(row=27, column = 1,padx=5,pady=(1,1),sticky = 'w')
-captured_battery_life_days_graph = ttk.Label(profile_frame, text='-' ,foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
-captured_battery_life_days_graph.grid(row=27, column = 1,padx=(240,4),pady=(1,1),sticky = 'w')
-optimized_battery_life_days_graph = ttk.Label(profile_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
-optimized_battery_life_days_graph.grid(row=27, column = 1,padx=(320,4),pady=(1,1),sticky = 'w')
-#optimized_battery_life_days_units_lab_4 = Label(profile_frame, text='days',foreground = 'blue',background='dark gray')
-#optimized_battery_life_days_units_lab_4.grid(row=27, column=1,padx=(300,2),pady=(1,1),sticky = 'w')
+batt_life_days_captured_graph_label = ttk.Label(hours_frame, text='Estimated Battery Life (days) ', foreground = 'blue',background='dark gray',font=("TkDefaultFont", 12))
+batt_life_days_captured_graph_label.grid(row=2, column=0,sticky = 'w')
+captured_battery_life_days_graph = ttk.Label(hours_frame, text='-' ,foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
+captured_battery_life_days_graph.grid(row=2, column=1,sticky = 'w')
+optimized_battery_life_days_graph = ttk.Label(hours_frame, text='-',foreground='blue',background='dark gray',font=("TkDefaultFont", 12))
+optimized_battery_life_days_graph.grid(row=2, column=2,sticky = 'w')
 
 #OPTIMIZE BUTTON
-optimize_button = tk.Button(profile_frame,text='Optimize',command=optimize_profile,state=tk.DISABLED)
-optimize_button.grid(row=25,column=0, rowspan=5,padx=(210,4),pady=(1,1),sticky = 'nw')
+optimize_button = tk.Button(results_frame,text='Optimize',command=optimize_profile,state=tk.DISABLED)
+optimize_button.grid(row=8,column=2, columnspan=2, sticky = 'w')
 
 ##RESET BUTTON
-reset_button = tk.Button(profile_frame,text='Reset',command=reset,state=tk.NORMAL)
-reset_button.grid(row=27,column=0,padx=(170,4),pady=(1,1),sticky = 'sw')
+reset_button = tk.Button(buttons_frame,text='Reset',command=reset,state=tk.NORMAL)
+reset_button.grid(row=1, column=2, sticky = 'w')
 
 ##SAVE BUTTON
-save_button = tk.Button(profile_frame,text='Save Results',command=SaveFile,state=tk.DISABLED)
-save_button.grid(row=26,column=0,padx=(90,4),pady=(1,1),sticky = 'sw')
+save_button = tk.Button(buttons_frame,text='Save Results',command=SaveFile,state=tk.DISABLED)
+save_button.grid(row=0, column=1, sticky = 'we')
 
 ##EXPORT DATA BUTTON
-export_button = tk.Button(profile_frame,text='Export Data',command=export_data,state=tk.DISABLED)
-export_button.grid(row=27,column=0,padx=(90,4),pady=(1,1),sticky = 'sw')
+export_button = tk.Button(buttons_frame,text='Export Data',command=export_data,state=tk.DISABLED)
+export_button.grid(row=1,column=1,sticky = 'we')
 
 #STEP LABELS
-step1_label = ttk.Label(profile_frame, text='Step1 - Battery Info and PSU Output',font=('Arial Bold',11), foreground = 'blue',background='dark gray')
-step1_label.grid(row=3, column = 0, padx=2,pady=(1,1), sticky = 'w',columnspan=2)
+step1_label = ttk.Label(config_frame, text='Step1 - Battery Info and PSU Output',font=('Arial Bold',11), foreground = 'blue',background='dark gray')
+step1_label.grid(row=2, column=0, sticky='w')
 
-step2_label = ttk.Label(profile_frame, text='Step2 - Active Event Current',font=('Arial Bold',11), background='dark gray')
-step2_label.grid(row=10, column = 0, padx=2,pady=(1,1),sticky = 'w',columnspan=2)
+step2_label = ttk.Label(step2_frame, text='Step2 - Active Event Current',font=('Arial Bold',11), background='dark gray')
+step2_label.grid(row=0, column=0, sticky='w')
 
-step3_label = ttk.Label(profile_frame, text='Step3 - Sleep Event Current',font=('Arial Bold',11), background='dark gray')
-step3_label.grid(row=13, column = 0, padx=2, pady=(1,1), sticky = 'w')
+step3_label = ttk.Label(step3_frame, text='Step3 - Sleep Event Current',font=('Arial Bold',11), background='dark gray')
+step3_label.grid(row=0, column=0, sticky='w')
 
-step4_label = ttk.Label(profile_frame, text='Step4 - Results and Optimization',font=('Arial Bold',11), background='dark gray')
-step4_label.grid(row=16, column = 0, padx=2, pady=(1,1), sticky = 'w')
+step4_label = ttk.Label(config_frame, text='Step4 - Results and Optimization',font=('Arial Bold',11), background='dark gray')
+step4_label.grid(row=9, column=0, sticky='w')
 
 update_soc_chart(0)
 data_plot(x,y,str(0),str(0),str(0),str(0),str(0))
@@ -1808,5 +1864,7 @@ data_plot(x,y,str(0),str(0),str(0),str(0),str(0))
 #bytes_returned = ser.write(cmd.encode())
 
 root.protocol("WM_DELETE_WINDOW", quitapp)
-   
+
+#print(ttk.Style().theme_names())
+#root.style.theme_use('default')
 root.mainloop()
